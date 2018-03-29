@@ -58,15 +58,29 @@ namespace SMBLibrary.Client
             _fileStore = null;
         }
 
-        public List<ListEntry> ListContent(string path)
+        public SMBClientStream GetFileReader(string path, SMBLibrary.ShareAccess shareAccess)
+        {
+            CheckFileStore();
+            _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.GENERIC_READ, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_NON_DIRECTORY_FILE, null);
+            if (fileStatus != FileStatus.FILE_OPENED)
+                throw new SMBClientException("Error in GetFileReader") { FileStatus = fileStatus };
+            return new SMBClientStream(_fileStore, handle);
+        }
+
+        private void CheckFileStore()
         {
             if (_fileStore == null)
-                throw new SMBClientException("call OpenShare first");            
+                throw new SMBClientException("call OpenShare first");
+        }
+
+        public List<ListEntry> ListContent(string path)
+        {
+            CheckFileStore();
             _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.GENERIC_READ, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DIRECTORY_FILE, null);
+            if (fileStatus != FileStatus.FILE_OPENED)
+                throw new SMBClientException("Error in ListContent") { FileStatus = fileStatus };
             try
-            {
-                if (fileStatus != FileStatus.FILE_OPENED)
-                    throw new SMBClientException("Error in ListContent") { FileStatus = fileStatus };
+            {                
                 _fileStore.QueryDirectory(out var items, handle, "*", FileInformationClass.FileDirectoryInformation);
                 var lst = new List<ListEntry>();
                 foreach (FileDirectoryInformation i in items)
