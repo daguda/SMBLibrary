@@ -230,3 +230,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 /.vs/SMBServer/v15/Server/sqlite3
+/.vs/SMBLibrary/v15/Server/sqlite3
