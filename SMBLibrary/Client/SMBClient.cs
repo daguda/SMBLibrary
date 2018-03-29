@@ -38,8 +38,70 @@ namespace SMBLibrary.Client
             return Enums.SMBClientStatus.LoggedIn;
         }
 
-        public void Dispose()
+        public void Logoff()
         {
+            Client.Logoff();            
+        }
+
+        ISMBFileStore _fileStore;
+
+        public void OpenShare(string share)
+        {            
+            _fileStore = Client.TreeConnect(share, out var status);
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new SMBClientException("Open share failed") { NTStatus = status };
+        }
+
+        public void CloseShare()
+        {
+            _fileStore?.Disconnect();
+            _fileStore = null;
+        }
+
+        public List<ListEntry> ListContent(string path)
+        {
+            if (_fileStore == null)
+                throw new SMBClientException("call OpenShare first");            
+            _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.GENERIC_READ, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DIRECTORY_FILE, null);
+            try
+            {
+                if (fileStatus != FileStatus.FILE_OPENED)
+                    throw new SMBClientException("Error in ListContent") { FileStatus = fileStatus };
+                _fileStore.QueryDirectory(out var items, handle, "*", FileInformationClass.FileDirectoryInformation);
+                var lst = new List<ListEntry>();
+                foreach (FileDirectoryInformation i in items)
+                {
+                    if (i.FileName == "." || i.FileName == "..")
+                        continue;
+                    var li = new ListEntry();
+                    li.Name = i.FileName;
+                    li.Size = i.AllocationSize;
+                    li.Attributes = i.FileAttributes;
+                    lst.Add(li);
+                }
+                return lst;
+            }
+            finally
+            {
+                _fileStore.CloseFile(handle);
+            }
+        }
+
+        public List<string> Shares
+        {
+            get
+            {
+                var lst = Client.ListShares(out var status);
+                if (status == NTStatus.STATUS_PENDING)
+                {
+                    lst = Client.ListShares(out status);
+                }
+                return lst;
+            }
+        }
+
+        public void Dispose()
+        {            
             Client?.Disconnect();
             Client = null;
         }
