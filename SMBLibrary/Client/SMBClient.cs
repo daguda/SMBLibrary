@@ -79,6 +79,18 @@ namespace SMBLibrary.Client
             return Exists(path, false);
         }
 
+        public void DeleteFile(string path)
+        {
+            CheckFileStore();
+            Server.SMB1.SMB1FileStoreHelper.DeleteFile(_fileStore, path, null);
+        }
+
+        public void DeleteDirectory(string path)
+        {
+            CheckFileStore();
+            Server.SMB1.SMB1FileStoreHelper.DeleteDirectory(_fileStore, path, null);
+        }
+
         public bool DirectoryExists(string path)
         {
             return Exists(path, true);
