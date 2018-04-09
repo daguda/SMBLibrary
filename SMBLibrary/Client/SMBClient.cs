@@ -49,7 +49,7 @@ namespace SMBLibrary.Client
         {            
             _fileStore = Client.TreeConnect(share, out var status);
             if (status != NTStatus.STATUS_SUCCESS)
-                throw new SMBClientException("Open share failed") { NTStatus = status };
+                throw new SMBClientException("Open share failed", status);
         }
 
         public void CloseShare()
@@ -58,13 +58,13 @@ namespace SMBLibrary.Client
             _fileStore = null;
         }
 
-        public SMBClientStream GetFileReader(string path, SMBLibrary.ShareAccess shareAccess)
+        public SMBClientFileStream GetSMBFileStream(string path, AccessMask accessMask , ShareAccess shareAccess = ShareAccess.Write | ShareAccess.Read , CreateDisposition createDisposition = CreateDisposition.FILE_OPEN)
         {
             CheckFileStore();
-            _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.GENERIC_READ, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_NON_DIRECTORY_FILE, null);
-            if (fileStatus != FileStatus.FILE_OPENED)
-                throw new SMBClientException("Error in GetFileReader") { FileStatus = fileStatus };
-            return new SMBClientStream(_fileStore, handle);
+            _fileStore.CreateFile(out object handle, out var fileStatus, path, accessMask, 0, shareAccess, createDisposition, CreateOptions.FILE_NON_DIRECTORY_FILE, null);
+            if (fileStatus != FileStatus.FILE_OPENED && fileStatus != FileStatus.FILE_CREATED && fileStatus != FileStatus.FILE_OVERWRITTEN)
+                throw new SMBClientException("Error in GetSMBFileStream", fileStatus);
+            return new SMBClientFileStream(_fileStore, handle);
         }
 
         private void CheckFileStore()
@@ -78,7 +78,7 @@ namespace SMBLibrary.Client
             CheckFileStore();
             _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.GENERIC_READ, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DIRECTORY_FILE, null);
             if (fileStatus != FileStatus.FILE_OPENED)
-                throw new SMBClientException("Error in ListContent") { FileStatus = fileStatus };
+                throw new SMBClientException("Error in ListContent", fileStatus);
             try
             {                
                 _fileStore.QueryDirectory(out var items, handle, "*", FileInformationClass.FileDirectoryInformation);

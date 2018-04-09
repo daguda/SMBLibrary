@@ -5,11 +5,11 @@ using System.Text;
 
 namespace SMBLibrary.Client
 {
-    public class SMBClientStream : System.IO.Stream
+    public class SMBClientFileStream : System.IO.Stream
     {
         public override bool CanRead { get { return true; } }
         public override bool CanSeek { get { return true; } }
-        public override bool CanWrite { get; }
+        public override bool CanWrite { get { return true; } }
         public override long Length { get { return _length; } }
         public override long Position { get; set; }
 
@@ -17,7 +17,7 @@ namespace SMBLibrary.Client
         object _handle;
         long _length;
 
-        public SMBClientStream(ISMBFileStore fileStore, object handle)
+        public SMBClientFileStream(ISMBFileStore fileStore, object handle)
         {
             _fileStore = fileStore;
             _handle = handle;
@@ -45,7 +45,7 @@ namespace SMBLibrary.Client
                     return count;
                 }
             }
-            throw new SMBClientException("Error on read") { NTStatus = status };
+            throw new SMBClientException("Error on read", status);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -72,7 +72,8 @@ namespace SMBLibrary.Client
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _fileStore.WriteFile(out var written, _handle, offset, buffer);
+            _fileStore.WriteFile(out var written, _handle, Position, buffer);
+            Position += written;
         }
 
         protected override void Dispose(bool disposing)

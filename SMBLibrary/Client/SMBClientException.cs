@@ -11,7 +11,16 @@ namespace SMBLibrary.Client
 
         public SMBClientException(string message) : base(message)
         {
+        }
 
+        public SMBClientException(string message, NTStatus ntStatus) : base(string.Format("{0} ({1})", message , ntStatus))
+        {
+            NTStatus = ntStatus;
+        }
+
+        public SMBClientException(string message, FileStatus fileStatus) : base(string.Format("{0} ({1})", message, fileStatus))
+        {
+            FileStatus = fileStatus;
         }
     }
 }
