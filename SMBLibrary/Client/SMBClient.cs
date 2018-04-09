@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SMBLibrary.Server.SMB2;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -21,7 +22,7 @@ namespace SMBLibrary.Client
                     Client = new SMB2Client();
                     break;
                 default:
-                    throw new NotImplementedException();                    
+                    throw new NotImplementedException();
             }
         }
 
@@ -40,13 +41,13 @@ namespace SMBLibrary.Client
 
         public void Logoff()
         {
-            Client.Logoff();            
+            Client.Logoff();
         }
 
         ISMBFileStore _fileStore;
 
         public void OpenShare(string share)
-        {            
+        {
             _fileStore = Client.TreeConnect(share, out var status);
             if (status != NTStatus.STATUS_SUCCESS)
                 throw new SMBClientException("Open share failed", status);
@@ -58,7 +59,7 @@ namespace SMBLibrary.Client
             _fileStore = null;
         }
 
-        public SMBClientFileStream GetSMBFileStream(string path, AccessMask accessMask , ShareAccess shareAccess = ShareAccess.Write | ShareAccess.Read , CreateDisposition createDisposition = CreateDisposition.FILE_OPEN)
+        public SMBClientFileStream GetSMBFileStream(string path, AccessMask accessMask, ShareAccess shareAccess = ShareAccess.Write | ShareAccess.Read, CreateDisposition createDisposition = CreateDisposition.FILE_OPEN)
         {
             CheckFileStore();
             _fileStore.CreateFile(out object handle, out var fileStatus, path, accessMask, 0, shareAccess, createDisposition, CreateOptions.FILE_NON_DIRECTORY_FILE, null);
@@ -73,6 +74,45 @@ namespace SMBLibrary.Client
                 throw new SMBClientException("call OpenShare first");
         }
 
+        public bool FileExists(string path)
+        {
+            return Exists(path, false);
+        }
+
+        public bool DirectoryExists(string path)
+        {
+            return Exists(path, true);
+        }
+
+        bool Exists(string path, bool isDirectory)
+        {
+            CheckFileStore();
+            _fileStore.CreateFile(out object handle, out var fileStatus, path, AccessMask.MAXIMUM_ALLOWED, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, isDirectory ? CreateOptions.FILE_DIRECTORY_FILE : CreateOptions.FILE_NON_DIRECTORY_FILE, null);
+
+            if (fileStatus != FileStatus.FILE_OPENED)
+                return false;
+            _fileStore.CloseFile(handle);
+            return true;
+        }
+
+        public void Rename(string fromPath, string toPath)
+        {
+            CheckFileStore();
+            _fileStore.CreateFile(out object handle, out var fileStatus, fromPath, AccessMask.MAXIMUM_ALLOWED, 0, ShareAccess.Read, CreateDisposition.FILE_OPEN, CreateOptions.FILE_NON_DIRECTORY_FILE, null);
+            if (fileStatus != FileStatus.FILE_OPENED)
+                throw new SMBClientException("Error in Rename", fileStatus);
+            try
+            {
+                var status = _fileStore.SetFileInformation(handle, new FileRenameInformationType2 { FileName = toPath, ReplaceIfExists = true });
+                if (status != NTStatus.STATUS_SUCCESS)
+                    throw new SMBClientException("Error on rename", status);
+            }
+            finally
+            {
+                _fileStore.CloseFile(handle);
+            }
+        }
+
         public List<ListEntry> ListContent(string path)
         {
             CheckFileStore();
@@ -80,7 +120,7 @@ namespace SMBLibrary.Client
             if (fileStatus != FileStatus.FILE_OPENED)
                 throw new SMBClientException("Error in ListContent", fileStatus);
             try
-            {                
+            {
                 _fileStore.QueryDirectory(out var items, handle, "*", FileInformationClass.FileDirectoryInformation);
                 var lst = new List<ListEntry>();
                 foreach (FileDirectoryInformation i in items)
@@ -115,7 +155,7 @@ namespace SMBLibrary.Client
         }
 
         public void Dispose()
-        {            
+        {
             Client?.Disconnect();
             Client = null;
         }
