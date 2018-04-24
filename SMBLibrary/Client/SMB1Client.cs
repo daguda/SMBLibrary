@@ -50,6 +50,8 @@ namespace SMBLibrary.Client
         private byte[] m_securityBlob;
         private byte[] m_sessionKey;
 
+        public int ConnectionTimeout = 10000;
+
         public SMB1Client()
         {
         }
@@ -78,7 +80,17 @@ namespace SMBLibrary.Client
 
                 try
                 {
-                    m_clientSocket.Connect(serverAddress, port);
+                    var result = m_clientSocket.BeginConnect(serverAddress, port, null, null);
+                    bool success = result.AsyncWaitHandle.WaitOne(ConnectionTimeout, true);
+                    if (success)
+                    {
+                        m_clientSocket.EndConnect(result);
+                    }
+                    else
+                    {
+                        m_clientSocket.Close();
+                        throw new SocketException(10060); // Connection timed out.
+                    }
                 }
                 catch (SocketException)
                 {

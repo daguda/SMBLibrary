@@ -8,18 +8,18 @@ namespace SMBLibrary.Client
     public class SMBClient : IDisposable
     {
         public Enums.SMBClientVersion Version { get; private set; }
-        protected ISMBClient Client { get; private set; }
+        protected ISMBClient Client { get; private set; }        
 
-        public SMBClient(Enums.SMBClientVersion version)
+        public SMBClient(Enums.SMBClientVersion version, int connectionTimeout = 10000)
         {
             Version = version;
             switch (Version)
             {
                 case Enums.SMBClientVersion.Version1:
-                    Client = new SMB1Client();
+                    Client = new SMB1Client { ConnectionTimeout = connectionTimeout };                    
                     break;
                 case Enums.SMBClientVersion.Version2:
-                    Client = new SMB2Client();
+                    Client = new SMB2Client { ConnectionTimeout = connectionTimeout };
                     break;
                 default:
                     throw new NotImplementedException();
