@@ -72,7 +72,9 @@ namespace SMBLibrary.Client
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _fileStore.WriteFile(out var written, _handle, Position, buffer);
+            var status = _fileStore.WriteFile(out var written, _handle, Position, buffer);
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new SMBClientException("Error on write", status);
             Position += written;
         }
 
